@@ -1,0 +1,6 @@
+pandas
+numpy==1.22.4
+scikit-learn
+gensim
+nltk
+torch
