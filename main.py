@@ -11,9 +11,11 @@ from vocab import Vocab
 from dataset import TextDataset, collate, load_biotech
 from train import train
 
-EPOCHS = 10
-LR = 1e-4
-WD = 1e-5
+BATCH_SIZE = 128
+
+EPOCHS = 15
+LR = 2e-4
+WD = 1e-3
 
 FACTOR = 0.5
 PATIENCE = 3
@@ -37,7 +39,7 @@ texts_train, texts_test, y_train, y_test = train_test_split(
 )
 
 print('Building vocab...')
-vocab = Vocab(texts_train, no_below=4, no_above=0.7)
+vocab = Vocab(texts_train, no_below=3, no_above=0.8)
 print('Vocab size:', len(vocab.dictionary))
 
 print('Tokenizing ...')
@@ -46,7 +48,7 @@ test_dataset = TextDataset(texts_test, y_test, vocab, device)
 
 train_loader = DataLoader(
     train_dataset,
-    batch_size=64,
+    batch_size=BATCH_SIZE,
     shuffle=True,
     collate_fn=lambda batch: collate(batch, vocab.pad_idx)
 )

@@ -49,5 +49,5 @@ def train(epochs, model, optim, criterion, train_loader, val_loader, val_gt, sch
         current_lr = optim.param_groups[0]['lr']
 
         print()
-        print(f"│ Train: {train_loss/len(train_loader):.4f} │ Val: {val_loss/len(val_loader):.4f} │ F1: {f1:.4f} │ LR: {current_lr:.6f} │")
+        print(f"│ Train: {train_loss/len(train_loader):.2f} │ Val: {val_loss/len(val_loader):.2f} │ F1: {f1*100:.2f} │ LR: {current_lr:.6f} │")
 

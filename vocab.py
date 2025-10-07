@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Iterable
 
 from tqdm import tqdm
 
@@ -25,7 +25,6 @@ class Vocab:
         }
 
         self.pad_idx = self.special_tokens['<PAD>']
-        print('pad idx:', self.pad_idx)
 
         for k, v in self.dictionary.token2id.items():
             self.dictionary.id2token[v] = k
@@ -33,16 +32,17 @@ class Vocab:
         for k, v in self.special_tokens.items():
             self.dictionary.token2id[k] = v
 
-    def tokenize(self, txt: str) -> Sequence[str]:
+    def tokenize(self, txt: str) -> Iterable[str]:
         CUSTOM_FILTERS = [
             strip_tags,
             strip_punctuation,
             strip_multiple_whitespaces,
             strip_numeric,
-            remove_stopwords
-            # lambda text: ' '.join(map(self.stemmer.stem, text.split()))
+            remove_stopwords,
         ]
-        return preprocess_string(txt, CUSTOM_FILTERS)
+        res = preprocess_string(txt, CUSTOM_FILTERS)
+        # res = (self.stemmer.stem(word) for word in res)
+        return res
 
     def txt2id(self, txt: str) -> Sequence[int]:
         tokens = self.tokenize(txt)
@@ -61,6 +61,7 @@ class Vocab:
 
 if __name__ == '__main__':
     example = 'wasabi technologies the hot cloud storage company today announced a multi year deal to become the official cloud storage partner of the boston bruins'
+    print(example)
     vocab = Vocab([example])
-    print(*vocab.tokenize(example), sep='\n')
+    print(*vocab.tokenize(example), sep=' ')
 

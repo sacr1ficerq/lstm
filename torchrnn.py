@@ -15,11 +15,15 @@ class TorchRNN(nn.Module):
             nonlinearity='tanh'
         )
 
-        self.output_layer = nn.Linear(hidden_size, num_classes)
+        self.output_layer1 = nn.Linear(hidden_size, hidden_size * 2)
+        self.output_layer2 = nn.Linear(hidden_size * 2, num_classes)
 
         # Dropout layers
-        self.embed_dropout = nn.Dropout(dropout_rate)
-        self.output_dropout = nn.Dropout(dropout_rate)
+        self.embed_dropout = nn.Dropout(0.2)
+        self.output_dropout = nn.Dropout(0.4)
+        self.linear_dropout = nn.Dropout(0.1)
+
+        self.relu = nn.ReLU()
 
         self.pad_idx = pad_idx
 
@@ -36,8 +40,11 @@ class TorchRNN(nn.Module):
             elif 'bias' in name:
                 param.data.zero_()
 
-        nn.init.xavier_uniform_(self.output_layer.weight)
-        self.output_layer.bias.data.zero_()
+        nn.init.xavier_uniform_(self.output_layer1.weight)
+        nn.init.xavier_uniform_(self.output_layer2.weight)
+
+        self.output_layer1.bias.data.zero_()
+        self.output_layer2.bias.data.zero_()
 
     def forward(self, x, h=None):
         # x shape: (batch_size, seq_len)
@@ -51,6 +58,10 @@ class TorchRNN(nn.Module):
         last_hidden = rnn_output[:, -1, :]  # (batch_size, hidden_size)
 
         last_hidden = self.output_dropout(last_hidden)
-        output = self.output_layer(last_hidden)
+
+        output = self.output_layer1(last_hidden)
+        output = self.linear_dropout(output)
+        output = self.relu(output)
+        output = self.output_layer2(output)
 
         return output, hidden.squeeze(0)
