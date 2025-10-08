@@ -33,6 +33,30 @@ def collate(batch, pad_idx):
     return padded_texts, labels_tensor
 
 
+def load_preprocessed():
+    dataset = pd.read_csv('data/preprocessed.csv')
+
+    all_labels = set()
+    for labels_str in dataset.labels:
+        all_labels.update(labels_str.split(', '))
+
+    keys = sorted(all_labels - {'other'})
+    label_to_idx = {label: idx for idx, label in enumerate(keys)}
+
+    def encode_labels(labels_str):
+        if labels_str == 'other':
+            return np.zeros(len(keys), dtype=np.float32)
+
+        encoded = np.zeros(len(keys), dtype=np.float32)
+        for label in labels_str.split(', '):
+            if label in label_to_idx:
+                encoded[label_to_idx[label]] = 1.0
+        return encoded
+
+    dataset['encoded_labels'] = [encode_labels(labels) for labels in dataset.labels]
+    return dataset, keys
+
+
 def load_biotech():
     dataset = pd.read_csv('data/biotech_news.tsv', sep='\t')
 
