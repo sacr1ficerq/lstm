@@ -9,7 +9,9 @@ from gensim.corpora import Dictionary
 
 
 class Vocab:
-    def __init__(self, corpus: Sequence[str], no_below=1, no_above=0.8):
+    def __init__(self, corpus: Sequence[str], no_below=1, no_above=0.8, max_tokens=100, clean=True):
+        self.clean = clean
+        self.max_tokens = max_tokens
         self.stemmer = PorterStemmer()
 
         tokenized_corpus = (self.tokenize(txt) for txt in tqdm(corpus))
@@ -33,6 +35,8 @@ class Vocab:
             self.dictionary.token2id[k] = v
 
     def tokenize(self, txt: str) -> Iterable[str]:
+        if not self.clean:
+            return txt.split(' ')
         CUSTOM_FILTERS = [
             strip_tags,
             strip_punctuation,
@@ -41,13 +45,15 @@ class Vocab:
             remove_stopwords,
         ]
         res = preprocess_string(txt, CUSTOM_FILTERS)
-        # res = (self.stemmer.stem(word) for word in res)
+        res = (self.stemmer.stem(word) for word in res)
         return res
 
     def txt2id(self, txt: str) -> Sequence[int]:
         tokens = self.tokenize(txt)
         res = self.dictionary.doc2idx(tokens, unknown_word_index=self.special_tokens['<UNK>'])
-        return list(filter(lambda x: x != self.special_tokens['<UNK>'], res))
+        res = list(filter(lambda x: x != self.special_tokens['<UNK>'], res))
+        res = res[:self.max_tokens]
+        return res
 
     def id2txt(self, ids: Sequence[int]) -> str:
         tokens = []

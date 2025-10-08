@@ -6,29 +6,35 @@ from torch.nn import BCEWithLogitsLoss
 from torch.utils.data import DataLoader
 
 from rnn import RNN
+from deep import LSTM
 from torchrnn import TorchRNN
 from vocab import Vocab
-from dataset import TextDataset, collate, load_biotech
+from dataset import TextDataset, collate, load_biotech, load_preprocessed
 from train import train
 
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 
-EPOCHS = 15
-LR = 2e-4
+WARMUP_EPOCHS = 12
+EPOCHS = 72
+LR = 3e-3
 WD = 1e-3
 
 FACTOR = 0.5
-PATIENCE = 3
+PATIENCE = 5
 
 config = {
-    'embed_dim': 64,
-    'hidden_size': 128,
+    'embed_dim': 128,
+    'hidden_size': 256,
     'num_classes': 28,
-    'dropout_rate': 0.3
+    'dropout_rate_emb': 0.1,
+    'dropout_rate_linear': 0.5,
+    'dropout_rate_hidden': 0.1,
+    'num_layers': 2
 }
 
 print('Loading dataset...')
-dataset, labels = load_biotech()
+# dataset, labels = load_biotech()
+dataset, labels = load_preprocessed()
 
 device = 'cuda:0'
 texts_train, texts_test, y_train, y_test = train_test_split(
@@ -39,7 +45,7 @@ texts_train, texts_test, y_train, y_test = train_test_split(
 )
 
 print('Building vocab...')
-vocab = Vocab(texts_train, no_below=3, no_above=0.8)
+vocab = Vocab(texts_train, no_below=26, no_above=0.68, max_tokens=36, clean=False)
 print('Vocab size:', len(vocab.dictionary))
 
 print('Tokenizing ...')
@@ -60,16 +66,17 @@ val_loader = DataLoader(
     collate_fn=lambda batch: collate(batch, vocab.pad_idx)
 )
 
-# class_weights = torch.tensor((y_train.shape[0] - y_train.sum(0)) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device)
-class_weights = torch.tensor((y_train.shape[0]) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device)
+class_weights = torch.tensor((y_train.shape[0] - y_train.sum(0)) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device)
+# class_weights = torch.tensor((y_train.shape[0]) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device)
 
 config['vocab_size'] = len(vocab.dictionary)
 config['pad_idx'] = vocab.pad_idx
 
 gt = torch.stack([torch.tensor(label) for label in y_test], dim=0).cpu()
-model = TorchRNN(**config).to(device)
+model = LSTM(**config).to(device)
 
 train_config = {
+    'warmup_epochs': WARMUP_EPOCHS,
     'epochs': EPOCHS,
     'model': model,
     'optim': AdamW(model.parameters(), lr=LR, weight_decay=WD),
@@ -79,12 +86,27 @@ train_config = {
     'val_gt': gt,
 }
 
-train_config['scheduler'] = lr_scheduler.ReduceLROnPlateau(
-        train_config['optim'],
-        mode='max',
-        factor=FACTOR,
-        patience=PATIENCE
+
+total_warmup_steps = WARMUP_EPOCHS * len(train_loader) 
+
+warmup_scheduler = lr_scheduler.LinearLR(
+    train_config['optim'],
+    start_factor=0.01,
+    end_factor=1.0,
+    total_iters=total_warmup_steps
 )
+
+
+plateau_scheduler = lr_scheduler.ReduceLROnPlateau(
+    train_config['optim'],
+    mode='max',
+    factor=0.5,
+    patience=3,
+    min_lr=1e-7,
+)
+
+train_config['warmup_scheduler'] = warmup_scheduler
+train_config['plateau_scheduler'] = plateau_scheduler
 
 print('Training model...')
 train(**train_config)
