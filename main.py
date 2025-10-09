@@ -5,10 +5,13 @@ from torch.optim import AdamW, lr_scheduler
 from torch.nn import BCEWithLogitsLoss
 from torch.utils.data import DataLoader
 
+import numpy as np
+
 from rnn import RNN
 from deep import LSTM
 from torchrnn import TorchRNN
-from vocab import Vocab
+# from vocab import Vocab
+from vocab_bpe import BPEVocab
 from dataset import TextDataset, collate, load_biotech, load_preprocessed
 from train import train
 
@@ -45,8 +48,10 @@ texts_train, texts_test, y_train, y_test = train_test_split(
 )
 
 print('Building vocab...')
-vocab = Vocab(texts_train, no_below=26, no_above=0.68, max_tokens=36, clean=False)
-print('Vocab size:', len(vocab.dictionary))
+# vocab = Vocab(texts_train, no_below=26, no_above=0.68, max_tokens=36, clean=False)
+vocab = BPEVocab(texts_train, vocab_size=4000, max_tokens=100, clean=False)
+
+# print('Vocab size:', len(vocab.dictionary))
 
 print('Tokenizing ...')
 train_dataset = TextDataset(texts_train, y_train, vocab, device)
@@ -66,10 +71,10 @@ val_loader = DataLoader(
     collate_fn=lambda batch: collate(batch, vocab.pad_idx)
 )
 
-class_weights = torch.tensor((y_train.shape[0] - y_train.sum(0)) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device)
+class_weights = torch.tensor((y_train.shape[0] - y_train.sum(0)) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device) # type: ignore
 # class_weights = torch.tensor((y_train.shape[0]) / (y_train.sum(0) + 1e-6), dtype=torch.float32, device=device)
 
-config['vocab_size'] = len(vocab.dictionary)
+config['vocab_size'] = vocab.tokenizer.vocab_size()
 config['pad_idx'] = vocab.pad_idx
 
 gt = torch.stack([torch.tensor(label) for label in y_test], dim=0).cpu()

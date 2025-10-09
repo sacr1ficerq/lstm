@@ -58,7 +58,7 @@ class LSTM(nn.Module):
 
             i, f, g, o = torch.chunk(all_gates, 4, dim=1)
 
-           i = torch.sigmoid(i)
+            i = torch.sigmoid(i)
             
             f = torch.sigmoid(f)
             
